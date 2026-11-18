@@ -17,7 +17,7 @@ Custom Morphe patches by **Deconta**.
 
 | 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
 |----------|----------------|-----------|
-| [Auto claim coupons](#auto-claim-coupons) | Aktiviert automatisch alle verfügbaren Coupons beim Laden der Coupon-Liste. |  |
+| [Auto claim coupons](#auto-claim-coupons) | Aktiviert automatisch alle verfuegbaren Coupons beim Laden der Coupon-Liste. |  |
 
 </details>
 

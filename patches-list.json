@@ -4,7 +4,7 @@
   "patches": [
     {
       "name": "Auto claim coupons",
-      "description": "Aktiviert automatisch alle verfügbaren Coupons beim Laden der Coupon-Liste.",
+      "description": "Aktiviert automatisch alle verfuegbaren Coupons beim Laden der Coupon-Liste.",
       "default": true,
       "category": null,
       "compatiblePackages": [
@@ -20,7 +20,10 @@
             {
               "version": "5.11.1",
               "versionCodes": {
-                "ALL": 421000110
+                "ARM64_V8A": 421000110,
+                "ARMEABI_V7A": 421000110,
+                "X86_64": 421000110,
+                "X86": 421000110
               },
               "isExperimental": false,
               "minSdk": null,
