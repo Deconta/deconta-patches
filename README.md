@@ -4,14 +4,25 @@ Custom Morphe patches by **Deconta**.
 
 ## Patches
 
-### Rossmann (`de.rossmann.app.android`)
+<!-- PATCHES_START EXPANDED -->
+> **[v1.0.0](https://github.com/Deconta/deconta-patches/releases/tag/v1.0.0)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;1 patches total
+<details open>
+<summary>📦 Rossmann&nbsp;&nbsp;•&nbsp;&nbsp;1 patch</summary>
+<br>
 
-* **Auto claim coupons**:
-  Aktiviert automatisch alle verfügbaren Coupons beim Laden der Coupon-Liste.
-  * Verwendet die native Aktivierungs-Logik der App (kein separater API-Client notwendig).
-  * Filtert bereits aktive, exklusive oder eingelöste Coupons automatisch heraus.
-  * Sequentielle Aktivierung mit 350 ms Verzögerung, um Rate-Limits zu verhindern.
-  * Zeigt nach Abschluss eine kurze Bestätigungs-Meldung (Toast).
+**🎯 Supported versions:**
+
+| 5.11.1 |
+| :---: |
+
+| 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
+|----------|----------------|-----------|
+| [Auto claim coupons](#auto-claim-coupons) | Aktiviert automatisch alle verfügbaren Coupons beim Laden der Coupon-Liste. |  |
+
+</details>
+
+<!-- PATCHES_END -->
+
 
 ## Bauen
 
