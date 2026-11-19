@@ -22,7 +22,7 @@ public final class AutoClaimCoupons {
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
     private static final long ACTIVATION_DELAY_MS = 350;
 
-    private static final Set<String> claimedCoupons = Collections.synchronizedSet(new HashSet<String>());
+    private static final Set<String> inFlightCoupons = Collections.synchronizedSet(new HashSet<String>());
     private static boolean isProcessing = false;
 
     private AutoClaimCoupons() {
@@ -45,7 +45,7 @@ public final class AutoClaimCoupons {
         });
     }
 
-    private static void processCoupons(Object fragment, Object data) throws Exception {
+    private static void processCoupons(final Object fragment, Object data) throws Exception {
         if (isProcessing) {
             return;
         }
@@ -138,25 +138,28 @@ public final class AutoClaimCoupons {
         final List<Object> toClaim = new ArrayList<>();
         Method getCouponIdMethod = null;
         Method isInWalletMethod = null;
-        Method showAsExclusiveMethod = null;
         Method isRedeemedMethod = null;
+        Method isPreviewMethod = null;
+        Method shouldHideButtonMethod = null;
 
         for (Object coupon : allCoupons) {
             Class<?> couponCls = coupon.getClass();
             if (getCouponIdMethod == null) {
                 getCouponIdMethod = couponCls.getMethod("getCouponId");
                 isInWalletMethod = couponCls.getMethod("isInWallet");
-                showAsExclusiveMethod = couponCls.getMethod("showAsExclusive");
                 isRedeemedMethod = couponCls.getMethod("isRedeemed");
+                isPreviewMethod = couponCls.getMethod("isPreview");
+                shouldHideButtonMethod = couponCls.getMethod("shouldHideButton");
             }
 
             String id = (String) getCouponIdMethod.invoke(coupon);
             boolean inWallet = (Boolean) isInWalletMethod.invoke(coupon);
-            boolean exclusive = (Boolean) showAsExclusiveMethod.invoke(coupon);
             boolean redeemed = (Boolean) isRedeemedMethod.invoke(coupon);
+            boolean preview = (Boolean) isPreviewMethod.invoke(coupon);
+            boolean hideButton = (Boolean) shouldHideButtonMethod.invoke(coupon);
 
-            if (!inWallet && !exclusive && !redeemed && id != null) {
-                if (!claimedCoupons.contains(id)) {
+            if (!inWallet && !redeemed && !preview && !hideButton && id != null) {
+                if (!inFlightCoupons.contains(id)) {
                     toClaim.add(coupon);
                 }
             }
@@ -186,7 +189,17 @@ public final class AutoClaimCoupons {
         isProcessing = true;
         final int totalCount = toClaim.size();
 
-        processQueue(0, toClaim, presenter, activateMethod, context, getCouponIdMethod, totalCount);
+        for (Object c : toClaim) {
+            try {
+                String cid = (String) getCouponIdMethod.invoke(c);
+                if (cid != null) {
+                    inFlightCoupons.add(cid);
+                }
+            } catch (Throwable ignored) {
+            }
+        }
+
+        processQueue(0, toClaim, presenter, activateMethod, context, fragment, getCouponIdMethod, totalCount);
     }
 
     private static void processQueue(
@@ -195,14 +208,36 @@ public final class AutoClaimCoupons {
         final Object presenter,
         final Method activateMethod,
         final Context context,
+        final Object fragment,
         final Method getCouponIdMethod,
         final int totalCount
     ) {
         if (index >= queue.size()) {
             isProcessing = false;
+            inFlightCoupons.clear();
+
             MAIN.post(new Runnable() {
                 @Override
                 public void run() {
+                    try {
+                        Field adapterField = null;
+                        for (Field f : fragment.getClass().getFields()) {
+                            if (f.getName().equals("w") || f.getType().getName().contains("LegacyCouponsAdapter")) {
+                                adapterField = f;
+                                break;
+                            }
+                        }
+                        if (adapterField != null) {
+                            Object adapter = adapterField.get(fragment);
+                            if (adapter != null) {
+                                Method notifyMethod = adapter.getClass().getMethod("notifyDataSetChanged");
+                                notifyMethod.invoke(adapter);
+                            }
+                        }
+                    } catch (Throwable t) {
+                        Log.d(TAG, "Could not notify adapter", t);
+                    }
+
                     Toast.makeText(
                         context,
                         "DecontaPatches: " + totalCount + " Coupons automatisch aktiviert!",
@@ -216,9 +251,6 @@ public final class AutoClaimCoupons {
         Object coupon = queue.get(index);
         try {
             String id = (String) getCouponIdMethod.invoke(coupon);
-            if (id != null) {
-                claimedCoupons.add(id);
-            }
             activateMethod.invoke(presenter, coupon, context);
             Log.d(TAG, "Activated coupon: " + id);
         } catch (Throwable t) {
@@ -228,7 +260,7 @@ public final class AutoClaimCoupons {
         MAIN.postDelayed(new Runnable() {
             @Override
             public void run() {
-                processQueue(index + 1, queue, presenter, activateMethod, context, getCouponIdMethod, totalCount);
+                processQueue(index + 1, queue, presenter, activateMethod, context, fragment, getCouponIdMethod, totalCount);
             }
         }, ACTIVATION_DELAY_MS);
     }
