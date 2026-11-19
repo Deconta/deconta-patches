@@ -1,3 +1,9 @@
+## [1.1.0](https://github.com/Deconta/deconta-patches/compare/v1.0.0...v1.1.0) (2026-11-19)
+
+### ✨ New Features
+
+* include exclusive coupons and refresh UI after claiming ([d62f44f](https://github.com/Deconta/deconta-patches/commit/d62f44f7f89e8ee5cda87ac0db5c5b8b2f2f6a56))
+
 ## 1.0.0 (2026-11-18)
 
 ### ✨ New Features
