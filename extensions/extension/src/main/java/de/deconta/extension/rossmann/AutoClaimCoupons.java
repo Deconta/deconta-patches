@@ -21,7 +21,7 @@ public final class AutoClaimCoupons {
 
     private static final String TAG = "DecontaPatches";
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
-    private static final long ACTIVATION_DELAY_MS = 350;
+    private static final long ACTIVATION_DELAY_MS = 120;
 
     private static final Set<String> inFlightCoupons = Collections.synchronizedSet(new HashSet<String>());
     private static boolean isProcessing = false;
@@ -162,7 +162,25 @@ public final class AutoClaimCoupons {
                 isPreviewMethod = couponCls.getMethod("isPreview");
                 shouldHideButtonMethod = couponCls.getMethod("shouldHideButton");
             }
+        }
 
+        boolean singletonAlreadyInWallet = false;
+        for (Object coupon : allCoupons) {
+            if (isSingletonCoupon(coupon)) {
+                try {
+                    boolean inWallet = (Boolean) isInWalletMethod.invoke(coupon);
+                    if (inWallet) {
+                        singletonAlreadyInWallet = true;
+                        Log.i(TAG, "Singleton (10%) coupon already active in wallet; skipping additional singletons");
+                        break;
+                    }
+                } catch (Throwable ignored) {
+                }
+            }
+        }
+
+        boolean claimedSingleton = false;
+        for (Object coupon : allCoupons) {
             String id = (String) getCouponIdMethod.invoke(coupon);
             boolean inWallet = (Boolean) isInWalletMethod.invoke(coupon);
             boolean redeemed = (Boolean) isRedeemedMethod.invoke(coupon);
@@ -170,6 +188,14 @@ public final class AutoClaimCoupons {
             boolean hideButton = (Boolean) shouldHideButtonMethod.invoke(coupon);
 
             if (!inWallet && !redeemed && !preview && !hideButton && id != null) {
+                if (isSingletonCoupon(coupon)) {
+                    if (singletonAlreadyInWallet || claimedSingleton) {
+                        Log.d(TAG, "Skipping secondary singleton coupon: " + id);
+                        continue;
+                    }
+                    claimedSingleton = true;
+                }
+
                 if (!inFlightCoupons.contains(id)) {
                     toClaim.add(coupon);
                 }
@@ -183,6 +209,12 @@ public final class AutoClaimCoupons {
         Log.i(TAG, "Found " + toClaim.size() + " coupons to auto-activate");
 
         isProcessing = true;
+
+        Toast.makeText(
+            context,
+            "DecontaPatches: Aktiviere " + toClaim.size() + " Coupons...",
+            Toast.LENGTH_SHORT
+        ).show();
 
         for (Object c : toClaim) {
             try {
@@ -242,7 +274,7 @@ public final class AutoClaimCoupons {
                     if (total > 0) {
                         Toast.makeText(
                             context,
-                            "DecontaPatches: " + total + " Coupons automatisch aktiviert!",
+                            "DecontaPatches: " + total + " Coupons erfolgreich aktiviert!",
                             Toast.LENGTH_SHORT
                         ).show();
                     }
@@ -271,5 +303,48 @@ public final class AutoClaimCoupons {
                 processQueue(index + 1, queue, factory, createPresenterMethod, displayField, dummyDisplay, activateMethod, context, fragment, getCouponIdMethod, successCount);
             }
         }, ACTIVATION_DELAY_MS);
+    }
+
+    private static boolean isSingletonCoupon(Object coupon) {
+        if (coupon == null) {
+            return false;
+        }
+        try {
+            Class<?> cls = coupon.getClass();
+            Method getRebateText = getMethodOrNull(cls, "getRebateText");
+            Method getRebateSubText = getMethodOrNull(cls, "getRebateSubText");
+            Method getTitle = getMethodOrNull(cls, "getTitle");
+            Method getSubtitle = getMethodOrNull(cls, "getSubtitle");
+
+            String rebateText = getRebateText != null ? (String) getRebateText.invoke(coupon) : "";
+            String rebateSubText = getRebateSubText != null ? (String) getRebateSubText.invoke(coupon) : "";
+            String title = getTitle != null ? (String) getTitle.invoke(coupon) : "";
+            String subtitle = getSubtitle != null ? (String) getSubtitle.invoke(coupon) : "";
+
+            String combined = (
+                (rebateText != null ? rebateText : "") + " " +
+                (rebateSubText != null ? rebateSubText : "") + " " +
+                (title != null ? title : "") + " " +
+                (subtitle != null ? subtitle : "")
+            ).toLowerCase();
+
+            if (combined.contains("auf alles") || combined.contains("gesamten einkauf")) {
+                return true;
+            }
+            if ((combined.contains("10%") || combined.contains("10 %")) && (combined.contains("filiale") || combined.contains("rabatt"))) {
+                return true;
+            }
+        } catch (Throwable t) {
+            Log.d(TAG, "Error checking singleton coupon", t);
+        }
+        return false;
+    }
+
+    private static Method getMethodOrNull(Class<?> cls, String name) {
+        try {
+            return cls.getMethod(name);
+        } catch (Throwable t) {
+            return null;
+        }
     }
 }
